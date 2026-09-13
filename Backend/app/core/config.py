@@ -53,7 +53,7 @@ class Settings(BaseSettings):
     @property
     def effective_database_url(self) -> PostgresDsn:
         if self.database_url is not None:
-            return self.database_url
+            return _to_asyncpg(str(self.database_url))
         raw = self.postgres_url or self.prisma_database_url
         if raw is None:
             # Belt-and-suspenders: also scan the raw environment directly, in case
