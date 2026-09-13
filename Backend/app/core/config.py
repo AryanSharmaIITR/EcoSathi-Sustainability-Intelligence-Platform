@@ -1,3 +1,4 @@
+import os
 import re
 from functools import lru_cache
 from pathlib import Path
@@ -54,6 +55,15 @@ class Settings(BaseSettings):
         if self.database_url is not None:
             return self.database_url
         raw = self.postgres_url or self.prisma_database_url
+        if raw is None:
+            # Belt-and-suspenders: also scan the raw environment directly, in case
+            # the Vercel-hosted Postgres vars don't survive settings loading.
+            raw = (
+                os.environ.get("EcoSathiDataBase_POSTGRES_URL")
+                or os.environ.get("EcoSathiDataBase_PRISMA_DATABASE_URL")
+                or os.environ.get("POSTGRES_URL")
+                or os.environ.get("PRISMA_DATABASE_URL")
+            )
         if raw is None:
             raise RuntimeError(
                 "No database URL configured. Set DATABASE_URL (postgresql+asyncpg://...) "
