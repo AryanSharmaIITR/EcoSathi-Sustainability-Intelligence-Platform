@@ -41,3 +41,8 @@ extend-exclude = ["alembic/versions"]
 [tool.ruff.lint]
 # B008: Depends()/File()/Header() in argument defaults is required FastAPI style, not a bug.
 ignore = ["B008"]
+
+[tool.vercel.scripts]
+# Vercel runs this as the Build Command (after deps are installed, before deploy).
+# Keeps the hosted Postgres schema in sync on every deployment.
+build = "alembic upgrade head"

@@ -33,7 +33,7 @@ if config.config_file_name is not None:
 
 # The real DB URL lives in .env (via app.core.config.Settings), not in
 # alembic.ini, so credentials aren't duplicated/committed in two places.
-config.set_main_option("sqlalchemy.url", str(get_settings().database_url))
+config.set_main_option("sqlalchemy.url", str(get_settings().effective_database_url))
 
 target_metadata = Base.metadata
 

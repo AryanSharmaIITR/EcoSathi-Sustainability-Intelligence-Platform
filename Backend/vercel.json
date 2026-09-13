@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "app/main.py": {
+      "maxDuration": 60,
+      "excludeFiles": "{.venv/**,__pycache__/**,**/__pycache__/**,tests/**,.pytest_cache/**,.ruff_cache/**,*.log,ecosathi_backend.egg-info/**}"
+    }
+  }
+}

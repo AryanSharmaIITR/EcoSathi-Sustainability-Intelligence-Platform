@@ -1,10 +1,24 @@
+import re
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import PostgresDsn
+from pydantic import AliasChoices, Field, PostgresDsn
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _ENV_FILE = Path(__file__).resolve().parent.parent.parent / ".env"
+
+
+def _to_asyncpg(url: str) -> PostgresDsn:
+    """Normalize a Postgres URL to the asyncpg driver scheme SQLAlchemy needs."""
+    if url.startswith("postgresql+asyncpg://"):
+        return PostgresDsn(url)
+    if url.startswith("postgresql://"):
+        url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    elif url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+    # asyncpg accepts `ssl`, not libpq's `sslmode` query-param name.
+    url = re.sub(r"([?&])sslmode=(?P<mode>\w+)", r"\g<1>ssl=\g<mode>", url)
+    return PostgresDsn(url)
 
 
 class Settings(BaseSettings):
@@ -14,13 +28,38 @@ class Settings(BaseSettings):
     api_v1_prefix: str = "/api/v1"
     environment: str = "local"
     app_debug: bool = False
-    database_url: PostgresDsn
+
+    # Explicit SQLAlchemy URL (postgresql+asyncpg://...). When absent, falls back
+    # to the connection strings Vercel creates for its hosted Postgres (Prisma/Neon),
+    # which are named after the database.
+    database_url: PostgresDsn | None = None
+    postgres_url: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("EcoSathiDataBase_POSTGRES_URL", "POSTGRES_URL"),
+    )
+    prisma_database_url: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("EcoSathiDataBase_PRISMA_DATABASE_URL", "PRISMA_DATABASE_URL"),
+    )
+
     secret_key: str
     cors_origins: list[str] = ["http://localhost:5173"]
 
     groq_api_key: str
     groq_vision_model: str = "qwen/qwen3.6-27b"
     groq_orchestration_model: str = "openai/gpt-oss-120b"
+
+    @property
+    def effective_database_url(self) -> PostgresDsn:
+        if self.database_url is not None:
+            return self.database_url
+        raw = self.postgres_url or self.prisma_database_url
+        if raw is None:
+            raise RuntimeError(
+                "No database URL configured. Set DATABASE_URL (postgresql+asyncpg://...) "
+                "or EcoSathiDataBase_POSTGRES_URL."
+            )
+        return _to_asyncpg(raw)
 
 
 @lru_cache
